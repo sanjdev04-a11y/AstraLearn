@@ -2,17 +2,18 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
+from app.api.v1 import auth
 from app.core.config import settings
 from app.database.base import Base
 from app.database.session import engine
+from app.models.user import User
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print(f"🚀 Starting {settings.APP_NAME} v{settings.APP_VERSION}")
 
-    #Base.metadata.create_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
 
     print("✅ Database tables ready")
 
@@ -30,6 +31,12 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+
+app.include_router(
+    auth.router,
+    prefix="/api/v1/auth",
+    tags=["Auth"]
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"] if settings.DEBUG else [],
