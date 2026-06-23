@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from sqlalchemy import Boolean, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
 
@@ -34,6 +36,14 @@ class User(Base):
         Boolean,
         default=False,
         nullable=False,
+    )
+
+    # One User -> Many Subjects
+    subjects: Mapped[list["Subject"]] = relationship(
+        "Subject",
+        back_populates="user",
+        lazy="select",
+        cascade="all, delete-orphan",
     )
 
     def __repr__(self):
