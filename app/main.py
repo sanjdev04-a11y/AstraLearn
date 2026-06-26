@@ -18,7 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.database.base import Base
 from app.database.session import engine
-
+from app.models import document, subject, user  # noqa: F401
 
 # ── Lifespan ──────────────────────────────────────────────────
 # FastAPI's "lifespan" runs code at startup and shutdown.
@@ -30,9 +30,15 @@ from app.database.session import engine
 # while developing so you don't have to run migration commands manually.
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from pathlib import Path
     # ── STARTUP ──────────────────────────────────────────────
     print(f"🚀 Starting {settings.APP_NAME} v{settings.APP_VERSION}")
-
+    
+    # Create upload directory if it doesn't exist
+    Path(settings.UPLOAD_DIR).mkdir(
+        parents=True,
+        exist_ok=True,
+    )
     # Create all tables that are registered with Base.metadata.
     # This is safe to run repeatedly — it only creates tables that
     # don't already exist (it never drops or modifies existing tables).
@@ -56,7 +62,6 @@ async def lifespan(app: FastAPI):
 #
 # noqa: F401 suppresses "imported but unused" linter warnings —
 # these imports are intentional side-effects (registering models).
-from app.models import user, subject  # noqa: F401
 
 
 # ── FastAPI App Instance ──────────────────────────────────────
@@ -79,7 +84,9 @@ app = FastAPI(
 # In production, replace "*" with your actual frontend domain.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"] if settings.DEBUG else ["https://yourdomain.com"],
+    allow_origins=[settings.FRONTEND_URL]
+    if not settings.DEBUG
+    else ["*"],
     allow_credentials=True,
     allow_methods=["*"],   # GET, POST, PUT, DELETE, etc.
     allow_headers=["*"],   # Authorization, Content-Type, etc.
@@ -90,10 +97,15 @@ app.add_middleware(
 # Each feature module registers its own router here.
 # prefix   → all routes in this router are prefixed with this path
 # tags     → groups routes together in the /docs UI
-from app.api.v1 import auth, subjects
+from app.api.v1 import auth, subjects, documents
 
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["Auth"])
 app.include_router(subjects.router, prefix="/api/v1/subjects", tags=["Subjects"])
+app.include_router(
+    documents.router,
+    prefix="/api/v1/subjects/{subject_id}/documents",
+    tags=["Documents"],
+)
 
 
 # ── Health Check ──────────────────────────────────────────────
@@ -103,10 +115,11 @@ app.include_router(subjects.router, prefix="/api/v1/subjects", tags=["Subjects"]
 def health_check():
     """Returns 200 OK if the server is running."""
     return {
-        "status": "ok",
-        "app": settings.APP_NAME,
-        "version": settings.APP_VERSION,
-    }
+    "status": "healthy",
+    "app": settings.APP_NAME,
+    "version": settings.APP_VERSION,
+    "debug": settings.DEBUG,
+}
 
 
 # ── Root ──────────────────────────────────────────────────────
@@ -114,6 +127,7 @@ def health_check():
 def root():
     """Welcome message at the API root."""
     return {
-        "message": f"Welcome to {settings.APP_NAME} API",
-        "docs": "/docs",
-    }
+    "message": f"Welcome to {settings.APP_NAME} API",
+    "version": settings.APP_VERSION,
+    "docs": "/docs" if settings.DEBUG else None,
+}

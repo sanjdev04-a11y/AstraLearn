@@ -93,12 +93,12 @@ class Subject(Base):
 
     # subject.documents → returns all uploaded documents
     # (Document model will be created in a later module)
-    #documents: Mapped[list["Document"]] = relationship(  # type: ignore[name-defined]
-        #"Document",
-       # back_populates="subject",
-      #  lazy="select",
-     #   cascade="all, delete-orphan",
-    #)
+    documents: Mapped[list["Document"]] = relationship(  # type: ignore[name-defined]
+        "Document",
+        back_populates="subject",
+        lazy="select",
+        cascade="all, delete-orphan",
+    )
 
     def __repr__(self) -> str:
         return (
